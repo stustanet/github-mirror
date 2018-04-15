@@ -86,6 +86,17 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				mirrorRepo(update.Name, update.ProjectID)
 			}
 
+		case "project_destroy":
+			if update.OwnerName == cfg.OrgName &&
+				update.ProjectVisibility == "public" {
+				log.Println("delete", update.Name)
+				repos.delete(update.Name)
+				if err := deleteGithubRepo(update.Name); err != nil {
+					log.Println(update.Name, err)
+					return
+				}
+			}
+
 		case "project_update":
 			if update.OwnerName == cfg.OrgName {
 				name := update.Name

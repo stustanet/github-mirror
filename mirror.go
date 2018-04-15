@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -154,10 +155,13 @@ func createGithubRepo(name, description, path string) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+
 	if resp.StatusCode != 201 {
+		bs, err := ioutil.ReadAll(resp.Body)
+		log.Println(string(bs), err)
 		return fmt.Errorf("unexpected response: %d %s", resp.StatusCode, resp.Status)
 	}
+	resp.Body.Close()
 	return pushGithubRepo(name, path)
 }
 

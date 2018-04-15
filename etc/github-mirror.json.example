@@ -1,0 +1,6 @@
+{
+    "github_token": "",
+    "gitlab_uro":   "https://gitlab.example.com/",
+    "org_name": "my_org",
+    "user_agent":  "GithubMirror",
+}

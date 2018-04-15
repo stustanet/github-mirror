@@ -10,6 +10,12 @@ import (
 	"strconv"
 )
 
+const (
+	visibilityPrivate  = 0
+	visibilityInternal = 10
+	visibilityPublic   = 20
+)
+
 type gitlabRepos []struct {
 	Name              string `json:"name"`
 	NameWithNamespace string `json:"name_with_namespace"`

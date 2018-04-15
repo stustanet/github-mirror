@@ -10,17 +10,21 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type repositoryUpdateHook struct {
 	Changes []struct {
 		Ref string `json:"ref"`
 	} `json:"changes"`
-	EventName         string `json:"event_name"`
-	Name              string `json:"name"`
-	Path              string `json:"path"`
-	PathWithNamespace string `json:"path_with_namespace"`
-	ProjectVisibility string `json:"project_visibility"`
+	EventName string `json:"event_name"`
+	Project   struct {
+		Name              string `json:"name"`
+		Namespace         string `json:"namespace"`
+		Description       string `json:"description"`
+		PathWithNamespace string `json:"path_with_namespace"`
+		VisibilityLevel   int    `json:"visibility_level"`
+	} `json:"project"`
 }
 
 func sendErr(w http.ResponseWriter, code int) {
@@ -53,8 +57,42 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			sendErr(rw, http.StatusBadRequest)
 			return
 		}
-
 		log.Println(update)
+
+		switch update.EventName {
+		case "repository_update":
+			if update.Project.Namespace == cfg.OrgName {
+				name := update.Project.Name
+				desc := update.Project.Description
+
+				nsPath := update.Project.PathWithNamespace
+				path := nsPath[strings.IndexByte(nsPath, '/')+1:]
+
+				mirrored := repos.contains(name)
+
+				log.Println(name, desc, nsPath, path, mirrored)
+				if !mirrored {
+					if update.Project.VisibilityLevel == visibilityPublic {
+						log.Println("add", name)
+						repos.add(name)
+						if err := createGithubRepo(name, desc, path); err != nil {
+							log.Println(name, err)
+						}
+					}
+				} else {
+					if update.Project.VisibilityLevel != visibilityPublic {
+						log.Println("delete", name)
+						//repos.add(name)
+						//createGithubRepo(name, desc, path)
+					} else if len(update.Changes) > 0 {
+						log.Println("push", name)
+						if err := pushRepo(name, path); err != nil {
+							log.Println(name, err)
+						}
+					}
+				}
+			}
+		}
 	default:
 		sendErr(rw, http.StatusBadRequest)
 		return

@@ -126,7 +126,7 @@ func updateGithubRepo(name, description, path string) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+
 	if resp.StatusCode != 200 {
 		bs, err := ioutil.ReadAll(resp.Body)
 		log.Println(name, string(bs), err)
@@ -134,4 +134,19 @@ func updateGithubRepo(name, description, path string) error {
 	}
 	resp.Body.Close()
 	return pushRepo(name, path)
+}
+
+func deleteGithubRepo(name string) error {
+	resp, err := sendGithub("DELETE", "repos/"+cfg.OrgName+"/"+name, nil)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 204 {
+		bs, err := ioutil.ReadAll(resp.Body)
+		log.Println(name, string(bs), err)
+		return fmt.Errorf("unexpected response: %s", resp.Status)
+	}
+	resp.Body.Close()
+	return nil
 }

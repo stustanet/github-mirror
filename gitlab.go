@@ -16,12 +16,14 @@ const (
 	visibilityPublic   = 20
 )
 
-type gitlabRepos []struct {
+type gitlabRepo struct {
 	Name              string `json:"name"`
 	NameWithNamespace string `json:"name_with_namespace"`
 	Description       string `json:"description"`
 	Path              string `json:"path"`
 }
+
+type gitlabRepos []gitlabRepo
 
 func gitlabRepoPath(path string) string {
 	return "/var/opt/gitlab/git-data/repositories/" + cfg.OrgName + "/" + path + ".git/"
@@ -50,5 +52,14 @@ func getGitlabRepos() (repos gitlabRepos, err error) {
 			page++
 		}
 	}
+	return
+}
+
+func getGitlabRepo(id int) (repo gitlabRepo, err error) {
+	resp, err := http.Get(cfg.GitlabURL + "api/v4/projects/" + strconv.Itoa(id))
+	if err != nil {
+		return
+	}
+	err = json.NewDecoder(resp.Body).Decode(&repo)
 	return
 }

@@ -13,22 +13,41 @@ import (
 	"strings"
 )
 
-type repositoryUpdateHook struct {
+type systemHook struct {
 	Changes []struct {
 		Ref string `json:"ref"`
 	} `json:"changes"`
 	EventName string `json:"event_name"`
+	Name      string `json:"name"`
+	OwnerName string `json:"owner_name"`
+	Path      string `json:"path"`
 	Project   struct {
-		Name              string `json:"name"`
-		Namespace         string `json:"namespace"`
-		Description       string `json:"description"`
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+		//Description       string `json:"description"`
 		PathWithNamespace string `json:"path_with_namespace"`
-		VisibilityLevel   int    `json:"visibility_level"`
+		//VisibilityLevel   int    `json:"visibility_level"`
 	} `json:"project"`
+	ProjectID         int    `json:"project_id"`
+	ProjectVisibility string `json:"project_visibility"`
 }
 
 func sendErr(w http.ResponseWriter, code int) {
 	http.Error(w, http.StatusText(code), code)
+}
+
+func mirrorRepo(name string, id int) {
+	details, err := getGitlabRepo(id)
+	if err != nil {
+		log.Println(name, err)
+		return
+	}
+	err = createGithubRepo(details.Name, details.Description, details.Path)
+	if err != nil {
+		log.Println(details.Name, err)
+		return
+	}
+	repos.add(details.Name)
 }
 
 type hooksHandler struct{}
@@ -50,7 +69,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	switch r.Header.Get("X-Gitlab-Event") {
 	case "System Hook":
-		var update repositoryUpdateHook
+		var update systemHook
 		err := json.NewDecoder(bytes.NewReader(bs)).Decode(&update)
 		if err != nil {
 			log.Println(err)
@@ -60,35 +79,55 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		log.Println(update)
 
 		switch update.EventName {
-		case "repository_update":
-			if update.Project.Namespace == cfg.OrgName {
-				name := update.Project.Name
-				desc := update.Project.Description
+		case "project_create":
+			if update.OwnerName == cfg.OrgName &&
+				update.ProjectVisibility == "public" {
+				log.Println("create", update.Name)
+				mirrorRepo(update.Name, update.ProjectID)
+			}
 
-				nsPath := update.Project.PathWithNamespace
-				path := nsPath[strings.IndexByte(nsPath, '/')+1:]
-
+		case "project_update":
+			if update.OwnerName == cfg.OrgName {
+				name := update.Name
 				mirrored := repos.contains(name)
-
-				log.Println(name, desc, nsPath, path, mirrored)
-				if !mirrored {
-					if update.Project.VisibilityLevel == visibilityPublic {
-						log.Println("add", name)
-						repos.add(name)
-						if err := createGithubRepo(name, desc, path); err != nil {
+				if mirrored {
+					if update.ProjectVisibility != "public" {
+						log.Println("delete", name)
+						repos.delete(name)
+						if err := deleteGithubRepo(name); err != nil {
 							log.Println(name, err)
+							return
+						}
+					} else {
+						details, err := getGitlabRepo(update.ProjectID)
+						if err != nil {
+							log.Println(name, err)
+							return
+						}
+						err = updateGithubRepo(name, details.Description, details.Path)
+						if err != nil {
+							log.Println(name, err)
+							return
 						}
 					}
 				} else {
-					if update.Project.VisibilityLevel != visibilityPublic {
-						log.Println("delete", name)
-						//repos.add(name)
-						//createGithubRepo(name, desc, path)
-					} else if len(update.Changes) > 0 {
-						log.Println("push", name)
-						if err := pushRepo(name, path); err != nil {
-							log.Println(name, err)
-						}
+					if update.ProjectVisibility == "public" {
+						log.Println("create", name)
+						mirrorRepo(name, update.ProjectID)
+					}
+				}
+			}
+
+		case "repository_update":
+			if update.Project.Namespace == cfg.OrgName {
+				name := update.Project.Name
+				nsPath := update.Project.PathWithNamespace
+				path := nsPath[strings.IndexByte(nsPath, '/')+1:]
+				if len(update.Changes) > 0 {
+					log.Println("push", name)
+					if err := pushRepo(name, path); err != nil {
+						log.Println(name, err)
+						return
 					}
 				}
 			}

@@ -58,10 +58,10 @@ func hasCommits(path string) bool {
 }
 
 // hash set of mirrored repos
-var repos map[string]struct{}
+var repos hashSet
 
 func fullSync() {
-	repos = make(map[string]struct{})
+	repos.reset()
 
 	glr, err := getGitlabRepos()
 	if err != nil {
@@ -106,8 +106,8 @@ func fullSync() {
 			}(repo.Name, repo.Description, repo.Path)
 		}
 
-		// add repo to hash map (used as hash set) of mirrored repos
-		repos[repo.Name] = struct{}{}
+		// add repo to set of mirrored repos
+		repos.add(repo.Name)
 	}
 }
 

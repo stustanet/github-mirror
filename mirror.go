@@ -43,7 +43,7 @@ func pushRepo(name, path string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s\n", stdoutStderr)
+	log.Printf("%s:\n%s\n", name, stdoutStderr)
 	return nil
 }
 
@@ -57,7 +57,12 @@ func hasCommits(path string) bool {
 	return cmd.Wait() == nil
 }
 
+// hash set of mirrored repos
+var repos map[string]struct{}
+
 func fullSync() {
+	repos = make(map[string]struct{})
+
 	glr, err := getGitlabRepos()
 	if err != nil {
 		log.Fatal(err)
@@ -84,18 +89,25 @@ func fullSync() {
 
 		if i < len(ghr) && ghr[i].Name == repo.Name {
 			fmt.Println("exists:", repo.Name)
-			err := updateGithubRepo(repo.Name, repo.Description, repo.Path)
-			if err != nil {
-				log.Println(err)
-			}
+			go func(name, desc, path string) {
+				err := updateGithubRepo(name, desc, path)
+				if err != nil {
+					log.Println(name, err)
+				}
+			}(repo.Name, repo.Description, repo.Path)
 			i++
 		} else {
 			fmt.Println("missing:", repo.Name)
-			err := createGithubRepo(repo.Name, repo.Description, repo.Path)
-			if err != nil {
-				log.Println(err)
-			}
+			go func(name, desc, path string) {
+				err := createGithubRepo(name, desc, path)
+				if err != nil {
+					log.Println(name, err)
+				}
+			}(repo.Name, repo.Description, repo.Path)
 		}
+
+		// add repo to hash map (used as hash set) of mirrored repos
+		repos[repo.Name] = struct{}{}
 	}
 }
 
@@ -106,8 +118,10 @@ func main() {
 	}
 
 	// make a full sync at startup
-	//fullSync()
+	fullSync()
 
 	// listen for system hooks events
-	http.ListenAndServe(cfg.HookListen, new(hooksHandler))
+	if err = http.ListenAndServe(cfg.HookListen, new(hooksHandler)); err != nil {
+		log.Fatal(err)
+	}
 }

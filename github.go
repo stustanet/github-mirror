@@ -110,7 +110,7 @@ func createGithubRepo(name, description, path string) error {
 
 	if resp.StatusCode != 201 {
 		bs, err := ioutil.ReadAll(resp.Body)
-		log.Println(string(bs), err)
+		log.Println(name, string(bs), err)
 		return fmt.Errorf("unexpected response: %d %s", resp.StatusCode, resp.Status)
 	}
 	resp.Body.Close()
@@ -128,7 +128,10 @@ func updateGithubRepo(name, description, path string) error {
 	}
 	resp.Body.Close()
 	if resp.StatusCode != 200 {
+		bs, err := ioutil.ReadAll(resp.Body)
+		log.Println(name, string(bs), err)
 		return fmt.Errorf("unexpected response: %s", resp.Status)
 	}
+	resp.Body.Close()
 	return pushRepo(name, path)
 }

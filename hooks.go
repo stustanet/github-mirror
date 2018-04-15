@@ -5,9 +5,7 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -62,20 +60,15 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println(r.Header)
-	bs, err := ioutil.ReadAll(r.Body)
-	log.Println(string(bs), err)
-
 	switch r.Header.Get("X-Gitlab-Event") {
 	case "System Hook":
 		var update systemHook
-		err := json.NewDecoder(bytes.NewReader(bs)).Decode(&update)
+		err := json.NewDecoder(r.Body).Decode(&update)
 		if err != nil {
 			log.Println(err)
 			sendErr(rw, http.StatusBadRequest)
 			return
 		}
-		log.Println(update)
 
 		switch update.EventName {
 		case "project_create":
@@ -136,6 +129,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 							return
 						}
 					} else {
+						log.Println("update", name)
 						details, err := getGitlabRepo(update.ProjectID)
 						if err != nil {
 							log.Println(name, err)

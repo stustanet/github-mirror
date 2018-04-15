@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type config struct {
@@ -34,19 +33,16 @@ func (c *config) parseFile(filepath string) (err error) {
 var cfg config
 
 type githubRepos []struct {
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Path        string    `json:"path"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Path        string `json:"path"`
 }
 
 type gitlabRepos []struct {
-	Name              string    `json:"name"`
-	NameWithNamespace string    `json:"name_with_namespace"`
-	Description       string    `json:"description"`
-	Path              string    `json:"path"`
-	CreatedAt         time.Time `json:"created_at"`
-	LastActivityAt    time.Time `json:"last_activity_at"`
+	Name              string `json:"name"`
+	NameWithNamespace string `json:"name_with_namespace"`
+	Description       string `json:"description"`
+	Path              string `json:"path"`
 }
 
 type createRepo struct {
@@ -192,6 +188,16 @@ func pushGithubRepo(name, path string) error {
 	return nil
 }
 
+func hasCommits(path string) bool {
+	cmd := exec.Command("git", "rev-list", "-n", "1", "--all")
+	cmd.Dir = "/var/opt/gitlab/git-data/repositories/" + cfg.OrgName + "/" + path + ".git/"
+	err := cmd.Start()
+	if err != nil {
+		return false
+	}
+	return cmd.Wait() == nil
+}
+
 func main() {
 	err := cfg.parseFile("/etc/github-mirror.json")
 	if err != nil {
@@ -213,8 +219,8 @@ func main() {
 	i := 0
 	for _, repo := range glr {
 		// skip repos which have no activity yet or are just shared with the group, not owned by it
-		if repo.LastActivityAt == repo.CreatedAt ||
-			!strings.HasPrefix(repo.NameWithNamespace, cfg.OrgName) {
+		if !strings.HasPrefix(repo.NameWithNamespace, cfg.OrgName+" ") || !hasCommits(repo.Path) {
+			fmt.Println("skip:", repo.Name)
 			continue
 		}
 		// skip repos which are on Github but not on Gitlab
@@ -230,7 +236,7 @@ func main() {
 			}
 			i++
 		} else {
-			fmt.Println("not on GH:", repo.Name)
+			fmt.Println("missing:", repo.Name)
 			err := createGithubRepo(repo.Name, repo.Description, repo.Path)
 			if err != nil {
 				log.Println(err)

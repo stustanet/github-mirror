@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"sort"
@@ -19,6 +20,8 @@ type config struct {
 	GitlabURL   string `json:"gitlab_url"`
 	OrgName     string `json:"org_name"`
 	UserAgent   string `json:"user_agent"`
+	HookSecret  string `json:"hook_secret"`
+	HookListen  string `json:"hook_listen"`
 }
 
 func (c *config) parseFile(filepath string) (err error) {
@@ -103,5 +106,8 @@ func main() {
 	}
 
 	// make a full sync at startup
-	fullSync()
+	//fullSync()
+
+	// listen for system hooks events
+	http.ListenAndServe(cfg.HookListen, new(hooksHandler))
 }

@@ -2,5 +2,7 @@
     "github_token": "",
     "gitlab_url":   "https://gitlab.example.com/",
     "org_name": "my_org",
-    "user_agent":  "GithubMirror"
+    "user_agent":  "GithubMirror",
+    "hook_listen": "127.0.0.1:56789",
+    "hook_secret": "very_secure"
 }

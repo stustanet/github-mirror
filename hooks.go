@@ -17,16 +17,15 @@ type systemHook struct {
 	Changes []struct {
 		Ref string `json:"ref"`
 	} `json:"changes"`
-	EventName string `json:"event_name"`
-	Name      string `json:"name"`
-	OwnerName string `json:"owner_name"`
-	Path      string `json:"path"`
-	Project   struct {
-		Name      string `json:"name"`
-		Namespace string `json:"namespace"`
-		//Description       string `json:"description"`
+	EventName            string `json:"event_name"`
+	Name                 string `json:"name"`
+	OldPathWithNamespace string `json:"old_path_with_namespace"`
+	Path                 string `json:"path"`
+	PathWithNamespace    string `json:"path_with_namespace"`
+	Project              struct {
+		Name              string `json:"name"`
+		Namespace         string `json:"namespace"`
 		PathWithNamespace string `json:"path_with_namespace"`
-		//VisibilityLevel   int    `json:"visibility_level"`
 	} `json:"project"`
 	ProjectID         int    `json:"project_id"`
 	ProjectVisibility string `json:"project_visibility"`
@@ -80,14 +79,18 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 		switch update.EventName {
 		case "project_create":
-			if update.OwnerName == cfg.OrgName &&
+			nsPath := update.PathWithNamespace
+			org := nsPath[:len(nsPath)-len(update.Path)-1]
+			if org == cfg.OrgName &&
 				update.ProjectVisibility == "public" {
 				log.Println("create", update.Name)
 				mirrorRepo(update.Name, update.ProjectID)
 			}
 
 		case "project_destroy":
-			if update.OwnerName == cfg.OrgName &&
+			nsPath := update.PathWithNamespace
+			org := nsPath[:len(nsPath)-len(update.Path)-1]
+			if org == cfg.OrgName &&
 				update.ProjectVisibility == "public" {
 				log.Println("delete", update.Name)
 				repos.delete(update.Name)
@@ -97,8 +100,31 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+		case "project_transfer":
+			if update.ProjectVisibility == "public" {
+				nsPath := update.PathWithNamespace
+				org := nsPath[:len(nsPath)-len(update.Path)-1]
+
+				oldNsPath := update.OldPathWithNamespace
+				oldOrg := oldNsPath[:len(oldNsPath)-len(update.Path)-1]
+
+				if org == cfg.OrgName && org != oldOrg {
+					log.Println("create", update.Name)
+					mirrorRepo(update.Name, update.ProjectID)
+				} else if oldOrg == cfg.OrgName && org != oldOrg {
+					log.Println("delete", update.Name)
+					repos.delete(update.Name)
+					if err := deleteGithubRepo(update.Name); err != nil {
+						log.Println(update.Name, err)
+						return
+					}
+				}
+			}
+
 		case "project_update":
-			if update.OwnerName == cfg.OrgName {
+			nsPath := update.PathWithNamespace
+			org := nsPath[:len(nsPath)-len(update.Path)-1]
+			if org == cfg.OrgName {
 				name := update.Name
 				mirrored := repos.contains(name)
 				if mirrored {

@@ -5,17 +5,22 @@
 package main
 
 import (
-	//"encoding/json"
+	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
 )
 
-type pushHook struct {
-	Project struct {
-		Name      string
-		Namespace string
-	}
+type repositoryUpdateHook struct {
+	Changes []struct {
+		Ref string `json:"ref"`
+	} `json:"changes"`
+	EventName         string `json:"event_name"`
+	Name              string `json:"name"`
+	Path              string `json:"path"`
+	PathWithNamespace string `json:"path_with_namespace"`
+	ProjectVisibility string `json:"project_visibility"`
 }
 
 func sendErr(w http.ResponseWriter, code int) {
@@ -35,17 +40,21 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println(r.Header)
+	bs, err := ioutil.ReadAll(r.Body)
+	log.Println(string(bs), err)
+
 	switch r.Header.Get("X-Gitlab-Event") {
 	case "Repository Update Hook":
-		// WIP: dump request
-		log.Println(r.Header)
-		bs, err := ioutil.ReadAll(r.Body)
-		log.Println(string(bs), err)
-	case "Push Hook":
-		// WIP: dump request
-		log.Println(r.Header)
-		bs, err := ioutil.ReadAll(r.Body)
-		log.Println(string(bs), err)
+		var update repositoryUpdateHook
+		err := json.NewDecoder(bytes.NewReader(bs)).Decode(&update)
+		if err != nil {
+			log.Println(err)
+			sendErr(rw, http.StatusBadRequest)
+			return
+		}
+
+		log.Println(update)
 	default:
 		sendErr(rw, http.StatusBadRequest)
 		return

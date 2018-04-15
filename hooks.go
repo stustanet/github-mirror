@@ -45,7 +45,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	log.Println(string(bs), err)
 
 	switch r.Header.Get("X-Gitlab-Event") {
-	case "Repository Update Hook":
+	case "System Hook":
 		var update repositoryUpdateHook
 		err := json.NewDecoder(bytes.NewReader(bs)).Decode(&update)
 		if err != nil {

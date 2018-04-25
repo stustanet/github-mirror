@@ -40,10 +40,10 @@ func pushRepo(name, path string) error {
 	cmd := exec.Command("git", "push", "--mirror", githubPushURL(name))
 	cmd.Dir = gitlabRepoPath(path)
 	stdoutStderr, err := cmd.CombinedOutput()
+	log.Printf("%s:\n%s\n", name, stdoutStderr)
 	if err != nil {
 		return err
 	}
-	log.Printf("%s:\n%s\n", name, stdoutStderr)
 	return nil
 }
 

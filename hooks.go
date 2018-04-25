@@ -24,6 +24,7 @@ type systemHook struct {
 		Name              string `json:"name"`
 		Namespace         string `json:"namespace"`
 		PathWithNamespace string `json:"path_with_namespace"`
+		VisibilityLevel   int    `json:"visibility_level"`
 	} `json:"project"`
 	ProjectID         int    `json:"project_id"`
 	ProjectVisibility string `json:"project_visibility"`
@@ -150,7 +151,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			}
 
 		case "repository_update":
-			if update.Project.Namespace == cfg.OrgName {
+			if update.Project.VisibilityLevel == visibilityPublic && update.Project.Namespace == cfg.OrgName {
 				name := update.Project.Name
 				nsPath := update.Project.PathWithNamespace
 				path := nsPath[strings.IndexByte(nsPath, '/')+1:]

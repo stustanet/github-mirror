@@ -1,9 +1,12 @@
 [Unit]
 Description=Github Mirror Service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 ExecStart=/usr/local/bin/github-mirror
 Restart=on-failure
+RestartSec=30
 
 NonBlocking=true
 

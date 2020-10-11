@@ -6,7 +6,6 @@ package main
 
 import (
 	"crypto/sha256"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -30,9 +29,8 @@ type gitlabRepo struct {
 type gitlabRepos []gitlabRepo
 
 func gitlabRepoPath(id int) string {
-	bs := make([]byte, 4)
-	binary.LittleEndian.PutUint32(bs, uint32(id))
-	hash := sha256.Sum256(bs)
+	bs := strconv.FormatInt(int64(id), 10)
+	hash := sha256.Sum256([]byte(bs))
 	hexDigest := hex.EncodeToString(hash[:])
 	return "/var/opt/gitlab/git-data/repositories/@hashed/" + hexDigest[0:2] + "/" + hexDigest[2:4] + "/" + hexDigest + ".git/"
 }

@@ -5,6 +5,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -17,6 +20,7 @@ const (
 )
 
 type gitlabRepo struct {
+	ID                int   `json:"id"`
 	Name              string `json:"name"`
 	NameWithNamespace string `json:"name_with_namespace"`
 	Description       string `json:"description"`
@@ -25,8 +29,12 @@ type gitlabRepo struct {
 
 type gitlabRepos []gitlabRepo
 
-func gitlabRepoPath(path string) string {
-	return "/var/opt/gitlab/git-data/repositories/" + cfg.OrgName + "/" + path + ".git/"
+func gitlabRepoPath(id int) string {
+	bs := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bs, uint32(id))
+	hash := sha256.Sum256(bs)
+	hexDigest := hex.EncodeToString(hash[:])
+	return "/var/opt/gitlab/git-data/repositories/@hashed/" + hexDigest[0:2] + "/" + hexDigest[2:4] + "/" + hexDigest + ".git/"
 }
 
 func getGitlabRepos() (repos gitlabRepos, err error) {
@@ -52,7 +60,6 @@ func getGitlabRepos() (repos gitlabRepos, err error) {
 			page++
 		}
 	}
-	return
 }
 
 func getGitlabRepo(id int) (repo gitlabRepo, err error) {

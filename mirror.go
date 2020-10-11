@@ -36,9 +36,9 @@ func (c *config) parseFile(filepath string) (err error) {
 
 var cfg config
 
-func pushRepo(name, path string) error {
+func pushRepo(id int, name string) error {
 	cmd := exec.Command("git", "push", "--mirror", githubPushURL(name))
-	cmd.Dir = gitlabRepoPath(path)
+	cmd.Dir = gitlabRepoPath(id)
 	stdoutStderr, err := cmd.CombinedOutput()
 	log.Printf("%s:\n%s\n", name, stdoutStderr)
 	if err != nil {
@@ -47,9 +47,9 @@ func pushRepo(name, path string) error {
 	return nil
 }
 
-func hasCommits(path string) bool {
+func hasCommits(id int) bool {
 	cmd := exec.Command("git", "rev-list", "-n", "1", "--all")
-	cmd.Dir = gitlabRepoPath(path)
+	cmd.Dir = gitlabRepoPath(id)
 	err := cmd.Start()
 	if err != nil {
 		return false
@@ -78,7 +78,7 @@ func fullSync() {
 	i := 0
 	for _, repo := range glr {
 		// skip repos which have no activity yet or are just shared with the group, not owned by it
-		if !strings.HasPrefix(repo.NameWithNamespace, cfg.OrgName+" ") || !hasCommits(repo.Path) {
+		if !strings.HasPrefix(repo.NameWithNamespace, cfg.OrgName+" ") || !hasCommits(repo.ID) {
 			fmt.Println("skip:", repo.Name)
 			continue
 		}
@@ -89,21 +89,21 @@ func fullSync() {
 
 		if i < len(ghr) && ghr[i].Name == repo.Name {
 			fmt.Println("exists:", repo.Name)
-			go func(name, desc, path string) {
-				err := updateGithubRepo(name, desc, path)
+			go func(id int, name, desc, path string) {
+				err := updateGithubRepo(id, name, desc, path)
 				if err != nil {
 					log.Println(name, err)
 				}
-			}(repo.Name, repo.Description, repo.Path)
+			}(repo.ID, repo.Name, repo.Description, repo.Path)
 			i++
 		} else {
 			fmt.Println("missing:", repo.Name)
-			go func(name, desc, path string) {
-				err := createGithubRepo(name, desc, path)
+			go func(id int, name, desc, path string) {
+				err := createGithubRepo(id, name, desc, path)
 				if err != nil {
 					log.Println(name, err)
 				}
-			}(repo.Name, repo.Description, repo.Path)
+			}(repo.ID, repo.Name, repo.Description, repo.Path)
 		}
 
 		// add repo to set of mirrored repos

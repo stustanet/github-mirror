@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 )
 
 type systemHook struct {
@@ -40,7 +39,7 @@ func mirrorRepo(name string, id int) {
 		log.Println(name, err)
 		return
 	}
-	err = createGithubRepo(details.Name, details.Description, details.Path)
+	err = createGithubRepo(details.ID, details.Name, details.Description, details.Path)
 	if err != nil {
 		log.Println(details.Name, err)
 		return
@@ -88,7 +87,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				update.ProjectVisibility == "public" {
 				log.Println("delete", update.Name)
 				repos.delete(update.Name)
-				if err := deleteGithubRepo(update.Name); err != nil {
+				if err := deleteGithubRepo(update.ProjectID, update.Name); err != nil {
 					log.Println(update.Name, err)
 					return
 				}
@@ -108,7 +107,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				} else if oldOrg == cfg.OrgName && org != oldOrg {
 					log.Println("delete", update.Name)
 					repos.delete(update.Name)
-					if err := deleteGithubRepo(update.Name); err != nil {
+					if err := deleteGithubRepo(update.ProjectID, update.Name); err != nil {
 						log.Println(update.Name, err)
 						return
 					}
@@ -125,7 +124,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 					if update.ProjectVisibility != "public" {
 						log.Println("delete", name)
 						repos.delete(name)
-						if err := deleteGithubRepo(name); err != nil {
+						if err := deleteGithubRepo(update.ProjectID, name); err != nil {
 							log.Println(name, err)
 							return
 						}
@@ -136,7 +135,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 							log.Println(name, err)
 							return
 						}
-						err = updateGithubRepo(name, details.Description, details.Path)
+						err = updateGithubRepo(update.ProjectID, name, details.Description, details.Path)
 						if err != nil {
 							log.Println(name, err)
 							return
@@ -153,11 +152,9 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		case "repository_update":
 			if update.Project.VisibilityLevel == visibilityPublic && update.Project.Namespace == cfg.OrgName {
 				name := update.Project.Name
-				nsPath := update.Project.PathWithNamespace
-				path := nsPath[strings.IndexByte(nsPath, '/')+1:]
 				if len(update.Changes) > 0 {
 					log.Println("push", name)
-					if err := pushRepo(name, path); err != nil {
+					if err := pushRepo(update.ProjectID, name); err != nil {
 						log.Println(name, err)
 						return
 					}

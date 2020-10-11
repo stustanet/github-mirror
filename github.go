@@ -94,7 +94,7 @@ func getGithubRepos() (repos githubRepos, err error) {
 	}
 }
 
-func createGithubRepo(name, description, path string) error {
+func createGithubRepo(id int, name, description, path string) error {
 	cr := createRepo{
 		Name:        name,
 		Description: description,
@@ -114,10 +114,10 @@ func createGithubRepo(name, description, path string) error {
 		return fmt.Errorf("unexpected response: %d %s", resp.StatusCode, resp.Status)
 	}
 	resp.Body.Close()
-	return pushRepo(name, path)
+	return pushRepo(id, name)
 }
 
-func updateGithubRepo(name, description, path string) error {
+func updateGithubRepo(id int, name, description, path string) error {
 	ur := updateRepo{
 		Name:        name,
 		Description: description,
@@ -133,10 +133,10 @@ func updateGithubRepo(name, description, path string) error {
 		return fmt.Errorf("unexpected response: %s", resp.Status)
 	}
 	resp.Body.Close()
-	return pushRepo(name, path)
+	return pushRepo(id, name)
 }
 
-func deleteGithubRepo(name string) error {
+func deleteGithubRepo(id int, name string) error {
 	resp, err := sendGithub("DELETE", "repos/"+cfg.OrgName+"/"+name, nil)
 	if err != nil {
 		return err

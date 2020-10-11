@@ -36,12 +36,12 @@ func sendErr(w http.ResponseWriter, code int) {
 func mirrorRepo(name string, id int) {
 	details, err := getGitlabRepo(id)
 	if err != nil {
-		log.Println(name, err)
+		log.Println(id, name, err)
 		return
 	}
 	err = createGithubRepo(details.ID, details.Name, details.Description, details.Path)
 	if err != nil {
-		log.Println(details.Name, err)
+		log.Println(details.ID, details.Name, err)
 		return
 	}
 	repos.add(details.Name)
@@ -122,14 +122,14 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 				mirrored := repos.contains(name)
 				if mirrored {
 					if update.ProjectVisibility != "public" {
-						log.Println("delete", name)
+						log.Println("delete", update.ProjectID, name)
 						repos.delete(name)
 						if err := deleteGithubRepo(update.ProjectID, name); err != nil {
 							log.Println(name, err)
 							return
 						}
 					} else {
-						log.Println("update", name)
+						log.Println("update", update.ProjectID, name)
 						details, err := getGitlabRepo(update.ProjectID)
 						if err != nil {
 							log.Println(name, err)
@@ -143,7 +143,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 					}
 				} else {
 					if update.ProjectVisibility == "public" {
-						log.Println("create", name)
+						log.Println("create", update.ProjectID, name)
 						mirrorRepo(name, update.ProjectID)
 					}
 				}
@@ -153,7 +153,7 @@ func (h *hooksHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			if update.Project.VisibilityLevel == visibilityPublic && update.Project.Namespace == cfg.OrgName {
 				name := update.Project.Name
 				if len(update.Changes) > 0 {
-					log.Println("push", name)
+					log.Println("push", update.ProjectID, name)
 					if err := pushRepo(update.ProjectID, name); err != nil {
 						log.Println(name, err)
 						return

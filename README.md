@@ -11,5 +11,3 @@ cp $GOPATH/src/gitlab.stusta.de/stustanet/github-mirror/etc/github-mirror.json.e
 ```
 
 Then adjust the `/etc/github-mirror.json`.
-
-Tmp test
